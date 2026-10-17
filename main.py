@@ -113,9 +113,10 @@ async def reverse_proxy(request: Request, path: str):
     except httpx.RequestError as exc:
         raise HTTPException(status_code=502, detail=f"Upstream unreachable: {exc}")
 
-    if upstream_res.status_code == 404:
+    if upstream_res.status_code >= 400:
+        response_body = await upstream_res.aread()
         await upstream_res.aclose()
-        raise HTTPException(status_code=404, detail="The requested resource was not found.")
+        raise HTTPException(status_code=upstream_res.status_code, detail=response_body.decode("utf-8"))
 
     return StreamingResponse(
         upstream_res.aiter_raw(),
